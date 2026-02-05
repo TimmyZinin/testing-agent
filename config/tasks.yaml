@@ -1,0 +1,170 @@
+# Testing Tasks Configuration
+# Version: 1.0.0
+
+analyze_code_task:
+  description: >
+    Analyze the provided code file for testing purposes.
+
+    File path: {file_path}
+    Language: {language}
+
+    Code content:
+    ```{language}
+    {code_content}
+    ```
+
+    Your analysis MUST include:
+    1. List all public functions/methods with their signatures
+    2. Map input parameters and return types
+    3. Count conditional branches (if/else, switch, ternary)
+    4. Identify error handling blocks (try/catch/except)
+    5. Note external dependencies and side effects
+    6. Calculate complexity score (1-10)
+    7. Prioritize which functions need tests most urgently
+
+    Focus on testable units. Flag any code that's untestable
+    (too many dependencies, side effects) with suggestions to refactor.
+  expected_output: >
+    JSON structure with this exact format:
+    {
+      "file_path": "path/to/file",
+      "language": "python",
+      "functions": [
+        {
+          "name": "function_name",
+          "line_number": 10,
+          "params": [{"name": "param1", "type": "str"}, {"name": "param2", "type": "int"}],
+          "returns": "bool",
+          "branches": 3,
+          "has_side_effects": true,
+          "dependencies": ["database", "external_api"],
+          "complexity": 5,
+          "testability": "high"
+        }
+      ],
+      "total_complexity": 7,
+      "priority_targets": ["func1", "func2"],
+      "warnings": ["func3 has too many dependencies - consider refactoring"]
+    }
+  agent: code_analyzer_agent
+
+write_tests_task:
+  description: >
+    Write {test_type} tests for the analyzed code.
+
+    Test Framework: {test_framework}
+    Language: {language}
+    Coverage Target: minimum 80%
+
+    Code to test:
+    ```{language}
+    {code_content}
+    ```
+
+    Analysis from previous step:
+    {context}
+
+    REQUIREMENTS:
+    1. Follow AAA pattern: Arrange, Act, Assert
+    2. One assertion per test (single responsibility)
+    3. Descriptive test names: test_[method]_[scenario]_[expected]
+    4. Mock ALL external dependencies
+    5. Include tests for:
+       - Happy path (normal operation)
+       - Edge cases (empty input, null, boundaries)
+       - Error scenarios (exceptions, invalid input)
+    6. Add docstrings explaining non-obvious test logic
+    7. Group related tests in classes/describe blocks
+
+    DO NOT:
+    - Leave TODO comments
+    - Skip error handling tests
+    - Use random values without seeding
+    - Depend on test execution order
+  expected_output: >
+    Complete, runnable test file with:
+    - All necessary imports
+    - Fixtures/setup methods if needed
+    - Test classes organized by functionality
+    - At least 3 tests per public function
+    - Comments for complex test scenarios
+
+    The output should be valid {language} code that can be
+    saved directly to a file and executed.
+  agent: qa_test_agent
+
+validate_tests_task:
+  description: >
+    Validate the generated tests for quality and correctness.
+
+    Language: {language}
+    Test Framework: {test_framework}
+
+    Generated tests to validate:
+    ```{language}
+    {context}
+    ```
+
+    Original code being tested:
+    ```{language}
+    {code_content}
+    ```
+
+    VALIDATION CHECKLIST:
+    1. SYNTAX: Is the code syntactically valid?
+    2. IMPORTS: Are all imports available and correct?
+    3. COVERAGE: Are all public functions tested?
+    4. EDGE CASES: Are boundary conditions covered?
+    5. ISOLATION: Do tests depend on each other?
+    6. DETERMINISM: Any random/time-dependent code?
+    7. NAMING: Do names describe what's being tested?
+    8. ASSERTIONS: Is each test asserting something meaningful?
+    9. MOCKING: Are external dependencies properly mocked?
+    10. READABILITY: Can a developer understand the tests?
+  expected_output: >
+    Validation report in JSON format:
+    {
+      "syntax_valid": true,
+      "imports_valid": true,
+      "estimated_coverage": 85,
+      "functions_tested": ["func1", "func2"],
+      "functions_missing": ["func3"],
+      "issues": [
+        {
+          "severity": "warning",
+          "test": "test_name",
+          "issue": "Uses time.sleep which makes test slow",
+          "fix": "Mock the time-dependent behavior"
+        }
+      ],
+      "quality_score": 8.5,
+      "ready_for_execution": true,
+      "recommendations": [
+        "Add parametrized tests for boundary values",
+        "Consider property-based testing for mathematical functions"
+      ]
+    }
+  agent: test_validator_agent
+
+fix_tests_task:
+  description: >
+    Fix issues found during validation.
+
+    Original tests:
+    ```{language}
+    {context}
+    ```
+
+    Validation report:
+    {validation_report}
+
+    Fix ALL issues marked as "error" severity.
+    Address "warning" issues if they affect test reliability.
+
+    Return the complete, corrected test file.
+  expected_output: >
+    Complete, corrected test file ready for execution.
+    All syntax errors fixed.
+    All critical issues resolved.
+    Code should pass validation without errors.
+  agent: qa_test_agent
