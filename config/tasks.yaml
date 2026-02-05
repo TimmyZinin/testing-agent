@@ -61,8 +61,8 @@ write_tests_task:
     {code_content}
     ```
 
-    Analysis from previous step:
-    {context}
+    Use the code analysis from the previous task to understand
+    which functions need tests and their complexity.
 
     REQUIREMENTS:
     1. Follow AAA pattern: Arrange, Act, Assert
@@ -100,10 +100,8 @@ validate_tests_task:
     Language: {language}
     Test Framework: {test_framework}
 
-    Generated tests to validate:
-    ```{language}
-    {context}
-    ```
+    Use the tests generated in the previous task.
+    Compare them against the original code to verify coverage.
 
     Original code being tested:
     ```{language}
@@ -146,25 +144,5 @@ validate_tests_task:
     }
   agent: test_validator_agent
 
-fix_tests_task:
-  description: >
-    Fix issues found during validation.
-
-    Original tests:
-    ```{language}
-    {context}
-    ```
-
-    Validation report:
-    {validation_report}
-
-    Fix ALL issues marked as "error" severity.
-    Address "warning" issues if they affect test reliability.
-
-    Return the complete, corrected test file.
-  expected_output: >
-    Complete, corrected test file ready for execution.
-    All syntax errors fixed.
-    All critical issues resolved.
-    Code should pass validation without errors.
-  agent: qa_test_agent
+# fix_tests_task is reserved for future use
+# It will be triggered when validation finds critical issues

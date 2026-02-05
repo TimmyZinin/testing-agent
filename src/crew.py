@@ -10,9 +10,29 @@ Usage:
 
 import os
 from pathlib import Path
-from crewai import Agent, Task, Crew, Process
+from crewai import Agent, Task, Crew, Process, LLM
 from crewai.project import CrewBase, agent, task, crew
 from crewai_tools import FileReadTool
+
+# Настройка LLM провайдера (приоритет: OpenRouter > GROQ > OpenAI)
+def get_llm():
+    """Получить LLM на основе доступных API ключей"""
+    if os.getenv("OPENROUTER_API_KEY"):
+        return LLM(
+            model="openrouter/google/gemini-2.0-flash-001",
+            api_key=os.getenv("OPENROUTER_API_KEY")
+        )
+    elif os.getenv("GROQ_API_KEY"):
+        return LLM(
+            model="groq/llama-3.3-70b-versatile",
+            api_key=os.getenv("GROQ_API_KEY")
+        )
+    elif os.getenv("OPENAI_API_KEY"):
+        return LLM(model="gpt-4o-mini")
+    else:
+        raise ValueError(
+            "No API key found. Set one of: OPENROUTER_API_KEY, GROQ_API_KEY, OPENAI_API_KEY"
+        )
 
 # Путь к конфигам относительно этого файла
 CONFIG_DIR = Path(__file__).parent.parent / "config"
@@ -59,6 +79,7 @@ class TestingCrew:
             role=config["role"],
             goal=config["goal"],
             backstory=config["backstory"],
+            llm=get_llm(),
             tools=[FileReadTool()],
             verbose=True,
             allow_delegation=False,
@@ -75,11 +96,11 @@ class TestingCrew:
             role=config["role"],
             goal=config["goal"],
             backstory=config["backstory"],
+            llm=get_llm(),
             tools=[FileReadTool()],
             verbose=True,
             allow_delegation=False,
-            allow_code_execution=True,
-            code_execution_mode="safe",  # Docker sandbox
+            allow_code_execution=False,  # Отключено (требует Docker)
             max_iter=15,
             max_execution_time=300,  # 5 минут максимум
             respect_context_window=True,
@@ -94,6 +115,7 @@ class TestingCrew:
             role=config["role"],
             goal=config["goal"],
             backstory=config["backstory"],
+            llm=get_llm(),
             tools=[],  # Валидатору не нужны внешние инструменты
             verbose=True,
             allow_delegation=False,
@@ -156,8 +178,7 @@ class TestingCrew:
             verbose=True,
             memory=True,  # Сохранять контекст между задачами
             max_rpm=10,   # Rate limiting
-            planning=True,  # Планирование перед выполнением
-            planning_llm="gpt-4o-mini"  # Легкая модель для планирования
+            planning=False  # Отключено — вызывает ошибки парсинга
         )
 
     # ==================== RUN METHODS ====================
@@ -220,6 +241,8 @@ class TestingCrew:
         Returns:
             Путь к сохранённому файлу с тестами
         """
+        import re
+
         result = self.run(file_path, **kwargs)
 
         # Автоматический путь: src/calc.py → tests/test_calc.py
@@ -230,18 +253,34 @@ class TestingCrew:
         # Создаём директорию если нужно
         Path(output_path).parent.mkdir(parents=True, exist_ok=True)
 
-        # Извлекаем тесты из результата
-        tests_content = result["raw"]
+        # Извлекаем тесты из второй задачи (write_tests_task)
+        # tasks_output: [0] = analyze, [1] = write_tests, [2] = validate
+        tests_content = None
 
-        # Если результат содержит markdown code blocks, извлекаем код
-        if "```python" in tests_content:
-            import re
+        if result.get("tasks_output") and len(result["tasks_output"]) >= 2:
+            # Берём вывод write_tests_task (индекс 1)
+            tests_content = result["tasks_output"][1]
+        else:
+            # Fallback на raw если tasks_output недоступен
+            tests_content = result["raw"]
+
+        # Извлекаем Python код из markdown blocks
+        if tests_content and "```python" in tests_content:
             code_blocks = re.findall(r'```python\n(.*?)```', tests_content, re.DOTALL)
             if code_blocks:
-                tests_content = code_blocks[-1]  # Берём последний блок (обычно финальные тесты)
+                # Берём самый большой блок (обычно это полные тесты)
+                tests_content = max(code_blocks, key=len)
+        elif tests_content and "```" in tests_content:
+            # Попробуем без указания языка
+            code_blocks = re.findall(r'```\n(.*?)```', tests_content, re.DOTALL)
+            if code_blocks:
+                tests_content = max(code_blocks, key=len)
+
+        if not tests_content or not tests_content.strip():
+            raise ValueError("No tests generated - check crew output")
 
         with open(output_path, 'w', encoding='utf-8') as f:
-            f.write(tests_content)
+            f.write(tests_content.strip())
 
         print(f"✅ Tests saved to: {output_path}")
         return output_path
