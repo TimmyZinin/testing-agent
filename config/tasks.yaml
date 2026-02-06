@@ -1,5 +1,5 @@
 # Testing Tasks Configuration
-# Version: 1.0.0
+# Version: 1.0.1
 
 analyze_code_task:
   description: >
@@ -25,27 +25,10 @@ analyze_code_task:
     Focus on testable units. Flag any code that's untestable
     (too many dependencies, side effects) with suggestions to refactor.
   expected_output: >
-    JSON structure with this exact format:
-    {
-      "file_path": "path/to/file",
-      "language": "python",
-      "functions": [
-        {
-          "name": "function_name",
-          "line_number": 10,
-          "params": [{"name": "param1", "type": "str"}, {"name": "param2", "type": "int"}],
-          "returns": "bool",
-          "branches": 3,
-          "has_side_effects": true,
-          "dependencies": ["database", "external_api"],
-          "complexity": 5,
-          "testability": "high"
-        }
-      ],
-      "total_complexity": 7,
-      "priority_targets": ["func1", "func2"],
-      "warnings": ["func3 has too many dependencies - consider refactoring"]
-    }
+    JSON structure with file_path, language, list of functions with
+    name, line_number, params, returns, branches, has_side_effects,
+    dependencies, complexity, testability. Include total_complexity,
+    priority_targets array, and warnings array.
   agent: code_analyzer_agent
 
 write_tests_task:
@@ -75,22 +58,24 @@ write_tests_task:
        - Error scenarios (exceptions, invalid input)
     6. Add docstrings explaining non-obvious test logic
     7. Group related tests in classes/describe blocks
+    8. DO NOT use nested test classes - keep test structure FLAT
 
     DO NOT:
     - Leave TODO comments
     - Skip error handling tests
     - Use random values without seeding
     - Depend on test execution order
+    - Create nested classes inside test classes
   expected_output: >
     Complete, runnable test file with:
     - All necessary imports
     - Fixtures/setup methods if needed
-    - Test classes organized by functionality
+    - FLAT test classes organized by functionality (no nested classes)
     - At least 3 tests per public function
     - Comments for complex test scenarios
 
     The output should be valid {language} code that can be
-    saved directly to a file and executed.
+    saved directly to a file and executed with pytest.
   agent: qa_test_agent
 
 validate_tests_task:
@@ -119,29 +104,12 @@ validate_tests_task:
     8. ASSERTIONS: Is each test asserting something meaningful?
     9. MOCKING: Are external dependencies properly mocked?
     10. READABILITY: Can a developer understand the tests?
+    11. STRUCTURE: Are test classes flat (not nested)?
   expected_output: >
-    Validation report in JSON format:
-    {
-      "syntax_valid": true,
-      "imports_valid": true,
-      "estimated_coverage": 85,
-      "functions_tested": ["func1", "func2"],
-      "functions_missing": ["func3"],
-      "issues": [
-        {
-          "severity": "warning",
-          "test": "test_name",
-          "issue": "Uses time.sleep which makes test slow",
-          "fix": "Mock the time-dependent behavior"
-        }
-      ],
-      "quality_score": 8.5,
-      "ready_for_execution": true,
-      "recommendations": [
-        "Add parametrized tests for boundary values",
-        "Consider property-based testing for mathematical functions"
-      ]
-    }
+    Validation report with syntax_valid, imports_valid,
+    estimated_coverage percentage, functions_tested array,
+    functions_missing array, issues array with severity/test/issue/fix,
+    quality_score, ready_for_execution boolean, and recommendations array.
   agent: test_validator_agent
 
 # fix_tests_task is reserved for future use
